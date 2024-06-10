@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Endless Runner</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #scoreContainer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: black;
+            color: white;
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+        }
+
+        #gameOverContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: black;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            border-radius: 10px;
+            display: none;
+            text-align: center;
+        }
+
+        #restartButton {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        #startMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: black;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <div id="scoreContainer">Score: <span id="score">0</span></div>
+    <div id="gameOverContainer">
+        <div id="gameOverMessage">Game Over!</div>
+        <div>Your Score: <span id="gameOverScore">0</span></div>
+        <div>Highest Score: <span id="highestScore">0</span></div>
+        <button id="restartButton" onclick="restartGame()">Restart Game</button>
+    </div>
+    <div id="startMessage">Up/Down arrow keys are the controls. Click anywhere to begin!!!</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const player = {
+            x: 50,
+            y: window.innerHeight / 2,
+            width: 40,
+            height: 40,
+            image: new Image(),
+            speed: 8
+        };
+
+        player.image.src = 'runner.png'; // Replace with the correct path to your runner image
+
+        const obstacles = [];
+        let obstacleSpeed = 5;
+        let score = 0;
+        let highestScore = localStorage.getItem("highestScore") || 0;
+        let isGameOver = false;
+        let isGameStarted = false;
+
+        const skyImage = new Image();
+        skyImage.src = 'sky.png';
+
+        const nightSkyImage = new Image();
+        nightSkyImage.src = 'nightsky.png';
+
+        const rockImage = new Image();
+        rockImage.src = 'rock.png';
+
+        const logImage = new Image();
+        logImage.src = 'log.png';
+
+        const bushImage = new Image();
+        bushImage.src = 'bush.png';
+
+        const obstacleTypes = [rockImage, logImage, bushImage];
+
+        const obstacleWidth = 40;
+        const obstacleHeight = 40;
+
+        let isNight = false;
+
+        function drawBackground() {
+            if (isNight) {
+                ctx.drawImage(nightSkyImage, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.drawImage(skyImage, 0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function drawPlayer() {
+            ctx.drawImage(player.image, player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            for (let obstacle of obstacles) {
+                ctx.drawImage(obstacle.type, obstacle.x, obstacle.y, obstacleWidth, obstacleHeight);
+            }
+        }
+
+        function drawScore() {
+            document.getElementById("score").innerText = score;
+        }
+
+        function drawGameOver() {
+            document.getElementById("gameOverScore").innerText = score;
+            document.getElementById("highestScore").innerText = highestScore;
+            document.getElementById("gameOverContainer").style.display = "block";
+        }
+
+        function drawStartMessage() {
+            document.getElementById("startMessage").style.display = "none";
+        }
+
+        function updateObstacles() {
+            if (Math.random() < 0.02) {
+                const typeIndex = Math.floor(Math.random() * obstacleTypes.length);
+                const obstacleType = obstacleTypes[typeIndex];
+                const obstacle = {
+                    x: canvas.width,
+                    y: Math.random() * canvas.height,
+                    type: obstacleType
+                };
+                obstacles.push(obstacle);
+            }
+
+            obstacles.forEach(obstacle => {
+                obstacle.x -= obstacleSpeed;
+            });
+
+            obstacles.filter(obstacle => obstacle.x + obstacleWidth > 0);
+
+            for (let obstacle of obstacles) {
+                if (player.x < obstacle.x + obstacleWidth &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacleHeight &&
+                    player.y + player.height > obstacle.y) {
+                    gameOver();
+                } else if (obstacle.x + obstacleWidth < player.x && !obstacle.passed) {
+                    obstacle.passed = true;
+                    score++;
+                }
+            }
+        }
+
+        function checkCollision() {
+            for (let obstacle of obstacles) {
+                if (
+                    player.x < obstacle.x + obstacleWidth &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacleHeight &&
+                    player.y + player.height > obstacle.y
+                ) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function gameLoop() {
+            if (isGameStarted && !isGameOver) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                drawBackground();
+                drawPlayer();
+                drawObstacles();
+                updateObstacles();
+                drawScore();
+                drawStartMessage();
+
+                if (checkCollision()) {
+                    gameOver();
+                }
+
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function restartGame() {
+            document.getElementById("gameOverContainer").style.display = "none";
+            obstacles.length = 0;
+            player.x = 50;
+            player.y = window.innerHeight / 2;
+            obstacleSpeed = 5;
+            score = 0;
+            isGameOver = false;
+            isGameStarted = false;
+            document.getElementById("startMessage").style.display = "block";
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            drawGameOver();
+            if (score > highestScore) {
+                highestScore = score;
+                localStorage.setItem("highestScore", highestScore);
+            }
+        }
+
+        document.addEventListener("keydown", function (event) {
+            if (isGameStarted && !isGameOver) {
+                if (event.code === "ArrowUp" && player.y > 0) {
+                    player.y -= player.speed;
+                } else if (event.code === "ArrowDown" && player.y + player.height < canvas.height) {
+                    player.y += player.speed;
+                }
+            }
+        });
+
+        document.addEventListener("click", function () {
+            if (!isGameStarted) {
+                isGameStarted = true;
+                gameLoop();
+            }
+        });
+
+        setInterval(function () {
+            isNight = !isNight;
+        }, 30000);
+
+        skyImage.onload = function () {
+            drawBackground();
+        };
+    </script>
+</body>
+
+</html>
